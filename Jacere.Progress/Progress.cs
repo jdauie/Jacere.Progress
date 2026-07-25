@@ -1,15 +1,20 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.Diagnostics.Metrics;
 
 namespace Jacere.Progress;
 
 public class Progress : IProgressCounter, IAsyncDisposable
 {
+    private static int _running = 0;
+
     private readonly WriterContext _writer;
     private readonly ConsoleProgressBar _progressBar;
     private readonly Task _task;
 
-    private readonly IProgressCounter _counter;
-    private readonly ConcurrentDictionary<string, IProgressCounter> _counters = new();
+    private IProgressCounter _primary;
+    private ImmutableList<IProgressCounter> _counters;
+    private readonly ConcurrentDictionary<string, Lazy<IProgressCounter>> _counterLookup = new();
     private bool _persistCounters;
 
     private TimeSpan _updateInterval = TimeSpan.FromMilliseconds(50);
@@ -45,35 +50,47 @@ public class Progress : IProgressCounter, IAsyncDisposable
         return new Progress<T>(counter);
     }
 
-    public string Name => _counter.Name;
-    public long Current => _counter.Current;
-    public DateTime Start => _counter.Start;
-    public long? Total => _counter.Total;
-    public bool IsPersistent => _counter.IsPersistent;
-    public ProgressCounter SetTotal(long total) => _counter.SetTotal(total);
+    public string Name => _primary.Name;
+    public long Current => _primary.Current;
+    public DateTime Start => _primary.Start;
+    public long? Total => _primary.Total;
+    public bool IsPersistent => _primary.IsPersistent;
+    public ProgressCounter SetTotal(long total) => _primary.SetTotal(total);
 
-    public ProgressCounter SetNameFormatter(Func<string, CounterStyle, TextLine> formatter) =>
-        _counter.SetNameFormatter(formatter);
+    public ProgressCounter SetNameFormatter(Func<NameFormatterContext, TextLine> formatter) =>
+        _primary.SetNameFormatter(formatter);
 
-    public ProgressCounter SetValueFormatter(Func<long, CounterStyle, TextLine> formatter) =>
-        _counter.SetValueFormatter(formatter);
+    public ProgressCounter SetValueFormatter(Func<ValueFormatterContext, TextLine> formatter) =>
+        _primary.SetValueFormatter(formatter);
 
-    public void Persist() => _counter.Persist();
+    public void Persist() => _primary.Persist();
 
-    public TextLine GetFormattedName() => _counter.GetFormattedName();
+    public TextLine GetFormattedName() => _primary.GetFormattedName();
 
     public TextLine GetFormattedValue(bool includeTotalIfAvailable = true) =>
-        _counter.GetFormattedValue(includeTotalIfAvailable);
+        _primary.GetFormattedValue(includeTotalIfAvailable);
 
-    public void Increment() => _counter.Increment();
+    public void Increment() => _primary.Increment();
 
-    public void Add(long count) => _counter.Add(count);
+    public void Add(long count) => _primary.Add(count);
 
-    public void Set(long count) => _counter.Set(count);
+    public void Set(long count) => _primary.Set(count);
+
+    public void Complete()
+    {
+        _primary.Complete();
+    }
 
     protected Progress(IProgressCounter counter)
     {
-        _counter = counter;
+        if (Interlocked.Exchange(ref _running, 1) == 1)
+        {
+            throw new InvalidOperationException($"Only one instance of {nameof(Progress)} can be created.");
+        }
+
+        _primary = counter;
+        _counters = ImmutableList.Create(counter);
+        _counterLookup[counter.Name] = new Lazy<IProgressCounter>(() => counter);
         _writer = new WriterContext();
         _progressBar = new ConsoleProgressBar();
         _task = UpdateDisplay(_source.Token);
@@ -140,13 +157,13 @@ public class Progress : IProgressCounter, IAsyncDisposable
     private void WriteCounters(bool persistentOnly)
     {
         // todo: should these be ordered? optionally?
-        var counters = new[] { _counter }
-            .Concat(_counters.Values)
+        var counters = _counters
             .Where(x => !persistentOnly || (x != this && (x.IsPersistent || _persistCounters)));
         foreach (var counter in counters)
         {
             // todo: save last printed values in case the formatter loses resolution? (so we can indicate an update)
             // really this entails a rethink of the formatter pattern
+            // ...I don't remember what I meant by that
 
             new TextLine()
                 .Add($"  {counter.Name}", CounterStyle.Priority2)
@@ -160,12 +177,15 @@ public class Progress : IProgressCounter, IAsyncDisposable
     {
         using var _ = _writer.Scope();
 
+        // use the first counter for the total time
+        var firstCounter = _counters[0];
+
         new TextLine()
             .Add(GetFormattedName())
             .Add(": ", CounterStyle.Priority3)
             .Add(GetFormattedValue(false))
             .Add(" in ", CounterStyle.Priority3)
-            .Add($@"{DateTime.UtcNow - Start:dd\.hh\:mm\:ss}", CounterStyle.Priority2)
+            .Add($@"{DateTime.UtcNow - firstCounter.Start:dd\.hh\:mm\:ss}", CounterStyle.Priority2)
             .Write(_writer);
         
         WriteCounters(true);
@@ -173,12 +193,25 @@ public class Progress : IProgressCounter, IAsyncDisposable
 
     public IProgressCounter Counter(string name)
     {
-        return _counters.GetOrAdd(name, x => new ProgressCounter(x));
+        var counter = _counterLookup.GetOrAdd(name, x => new Lazy<IProgressCounter>(() =>
+        {
+            var c = new ProgressCounter(x);
+            _counters = _counters.Add(c);
+            return c;
+        })).Value;
+
+        
+        return counter;
     }
 
     public IProgressCounter<T> Counter<T>(string name)
     {
-        var counter = _counters.GetOrAdd(name, x => new ProgressCounter<T>(x));
+        var counter = _counterLookup.GetOrAdd(name, x => new Lazy<IProgressCounter>(() =>
+        {
+            var c = new ProgressCounter<T>(x);
+            _counters = _counters.Add(c);
+            return c;
+        })).Value;
 
         if (counter is IProgressCounter<T> g)
         {
@@ -186,6 +219,30 @@ public class Progress : IProgressCounter, IAsyncDisposable
         }
 
         throw new ArgumentException("counter type mismatch");
+    }
+
+    public IProgressCounter Step(string name, long? total = null)
+    {
+        var counter = Counter(name);
+        _primary.Complete();
+        _primary = counter;
+        if (total != null)
+        {
+            _primary.SetTotal(total.Value);
+        }
+        return counter;
+    }
+
+    public IProgressCounter<T> Step<T>(string name, long? total = null)
+    {
+        var counter = Counter<T>(name);
+        _primary.Complete();
+        _primary = counter;
+        if (total != null)
+        {
+            _primary.SetTotal(total.Value);
+        }
+        return counter;
     }
 
     public async ValueTask DisposeAsync()
@@ -198,5 +255,9 @@ public class Progress : IProgressCounter, IAsyncDisposable
         WriteComplete();
 
         _writer.Dispose();
+
+        Interlocked.Exchange(ref _running, 0);
+
+        GC.SuppressFinalize(this);
     }
 }

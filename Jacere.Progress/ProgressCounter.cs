@@ -2,26 +2,29 @@
 
 namespace Jacere.Progress;
 
+public record ValueFormatterContext(long Value, CounterStyle Style, bool IsComplete);
+public record NameFormatterContext(string Name, CounterStyle Style, bool IsComplete);
+
 public class ProgressCounter : IProgressCounter
 {
     // todo: move these
-    public static Func<long, CounterStyle, TextLine> DefaultValueFormatter = (v, s) => new TextLine().Add($"{v:n0}", s);
-    public static Func<long, CounterStyle, TextLine> BinaryByteSizeFormatter = (v, s) => new TextLine().Add(ByteSize.FromBytes(v).ToBinaryString(), s);
+    public static readonly Func<ValueFormatterContext, TextLine> DefaultValueFormatter = c => new TextLine().Add($"{c.Value:n0}", c.Style);
+    public static readonly Func<ValueFormatterContext, TextLine> BinaryByteSizeFormatter = c => new TextLine().Add(ByteSize.FromBytes(c.Value).ToBinaryString(), c.Style);
 
-    public static Func<string, CounterStyle, TextLine> DefaultNameFormatter = (v, s) => new TextLine().Add(v, s);
-    public static Func<string, CounterStyle, TextLine> ScopedNameFormatter = (v, s) =>
+    public static readonly Func<NameFormatterContext, TextLine> DefaultNameFormatter = c => new TextLine().Add(c.Name, c.Style);
+    public static readonly Func<NameFormatterContext, TextLine> ScopedNameFormatter = c =>
     {
-        var i = v.IndexOf(':');
+        var i = c.Name.IndexOf(':');
         if (i == -1)
         {
             return new TextLine()
-                .Add(v, s);
+                .Add(c.Name, c.Style);
         }
 
         return new TextLine()
-            .Add(v[..i], CounterStyle.Priority1)
+            .Add(c.Name[..i], CounterStyle.Priority1)
             .Add(":", CounterStyle.Priority3)
-            .Add(v[(i + 1)..], s);
+            .Add(c.Name[(i + 1)..], c.Style);
     };
     
     public string Name { get; }
@@ -29,6 +32,7 @@ public class ProgressCounter : IProgressCounter
     private long _current;
     private Func<ProgressCounter, TextLine> _nameFormatter;
     private Func<bool, TextLine> _valueFormatter;
+    private bool _complete;
 
     public long Current => _current;
 
@@ -50,13 +54,13 @@ public class ProgressCounter : IProgressCounter
         return this;
     }
 
-    public ProgressCounter SetNameFormatter(Func<string, CounterStyle, TextLine> formatter)
+    public ProgressCounter SetNameFormatter(Func<NameFormatterContext, TextLine> formatter)
     {
         _nameFormatter = CreateNameFormatter(formatter);
         return this;
     }
     
-    public ProgressCounter SetValueFormatter(Func<long, CounterStyle, TextLine> formatter)
+    public ProgressCounter SetValueFormatter(Func<ValueFormatterContext, TextLine> formatter)
     {
         _valueFormatter = CreateValueFormatter(formatter);
         return this;
@@ -92,27 +96,32 @@ public class ProgressCounter : IProgressCounter
         Interlocked.Exchange(ref _current, count);
     }
 
-    protected virtual TextLine FormatValue(Func<long, CounterStyle, TextLine> formatter, bool includeTotalIfAvailable)
+    public void Complete()
+    {
+        _complete = true;
+    }
+
+    protected virtual TextLine FormatValue(Func<ValueFormatterContext, TextLine> formatter, bool includeTotalIfAvailable)
     {
         var line = new TextLine()
-            .Add(formatter(Current, CounterStyle.Priority1));
+            .Add(formatter(new ValueFormatterContext(Current, CounterStyle.Priority1, _complete)));
 
         if (includeTotalIfAvailable && Total.HasValue)
         {
             line.Add(" of ", CounterStyle.Priority3);
-            line.Add(formatter(Total.Value, CounterStyle.Priority2));
+            line.Add(formatter(new ValueFormatterContext(Total.Value, CounterStyle.Priority2, _complete)));
         }
 
         return line;
     }
 
-    private static Func<ProgressCounter, TextLine> CreateNameFormatter(Func<string, CounterStyle, TextLine> formatter)
+    private Func<ProgressCounter, TextLine> CreateNameFormatter(Func<NameFormatterContext, TextLine> formatter)
     {
         return c => new TextLine()
-            .Add(formatter(c.Name, CounterStyle.ProgressName));
+            .Add(formatter(new NameFormatterContext(c.Name, CounterStyle.ProgressName, _complete)));
     }
 
-    private Func<bool, TextLine> CreateValueFormatter(Func<long, CounterStyle, TextLine> formatter)
+    private Func<bool, TextLine> CreateValueFormatter(Func<ValueFormatterContext, TextLine> formatter)
     {
         return includeTotalIfAvailable => FormatValue(formatter, includeTotalIfAvailable);
     }

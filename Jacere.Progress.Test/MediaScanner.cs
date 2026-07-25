@@ -13,7 +13,7 @@ internal class MediaScanner
             { @"M:\tv", _ => true }
         };
 
-        //await Optimize();
+        await Optimize();
 
         foreach (var (dir, filter) in dirsToScan)
         {
@@ -33,8 +33,15 @@ internal class MediaScanner
     static async Task Optimize()
     {
         await using var progress = Progress.Unknown("optimizing");
+        
+        progress.SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
 
-        for (var i = 0; i < 200; i++)
+        await Task.Delay(TimeSpan.FromSeconds(5));
+
+        var count = 200;
+        progress.Step("step 2", count);
+
+        for (var i = 0; i < count; i++)
         {
             await Task.Delay(TimeSpan.FromMilliseconds(100));
 
@@ -106,7 +113,7 @@ internal class MediaScanner
                 }
             }
 
-            //await Task.Delay(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(TimeSpan.FromMilliseconds(10));
             //await Task.Delay(TimeSpan.FromSeconds(10000));
         }
     }

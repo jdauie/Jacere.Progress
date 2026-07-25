@@ -1,12 +1,8 @@
 ﻿namespace Jacere.Progress;
 
-public class ProgressCounter<T> : ProgressCounter, IProgressCounter<T>
+public class ProgressCounter<T>(string name) : ProgressCounter(name), IProgressCounter<T>
 {
     private Func<T, TextLine>? _currentFormatter;
-
-    public ProgressCounter(string name) : base(name)
-    {
-    }
 
     public T? CurrentValue { get; private set; }
 
@@ -39,7 +35,7 @@ public class ProgressCounter<T> : ProgressCounter, IProgressCounter<T>
         return this;
     }
 
-    protected override TextLine FormatValue(Func<long, CounterStyle, TextLine> formatter, bool includeTotalIfAvailable)
+    protected override TextLine FormatValue(Func<ValueFormatterContext, TextLine> formatter, bool includeTotalIfAvailable)
     {
         var line = base.FormatValue(formatter, includeTotalIfAvailable);
 
