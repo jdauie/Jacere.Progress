@@ -172,7 +172,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
             .Write(_writer);
 
         new TextLine()
-            .Add($" {progress:P} ", CounterStyle.Progress)
+            .Add($" {progress:P0} ", CounterStyle.Progress)
             .Add(firstCounter.GetFormattedName())
             .Pad()
             .Add($@"(started {Start:yyyy-MM-dd HH\:mm\:ss}Z) ", CounterStyle.Progress2)

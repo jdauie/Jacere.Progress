@@ -14,20 +14,18 @@
     <RepositoryUrl>https://github.com/jdauie/Jacere.Progress</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
 	<ItemGroup>
-		<None Include="..\..\README.md" Pack="true" PackagePath="\" Link="Docs\README.md" />
+		<None Include="..\..\icon.png" Pack="true" PackagePath="\" Link="Docs\icon.png" />
 		<None Include="..\..\LICENSE" Pack="true" PackagePath="\" Link="Docs\LICENSE" />
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" Link="Docs\README.md" />
 	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ByteSize" Version="2.1.2" />
     <PackageReference Include="MinVer" PrivateAssets="All" Version="2.3.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Docs\" />
   </ItemGroup>
 
 </Project>
