@@ -10,12 +10,20 @@
     <Title>Console Progress</Title>
     <Company />
     <Authors>jdauie</Authors>
-    <PackageTags>console;terminal;progress</PackageTags>
+    <PackageTags>console;terminal;powershell;progress</PackageTags>
     <RepositoryUrl>https://github.com/jdauie/Jacere.Progress</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ByteSize" Version="2.1.2" />
+    <PackageReference Include="MinVer" PrivateAssets="All" Version="2.3.0" />
   </ItemGroup>
 
 </Project>

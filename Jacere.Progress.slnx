@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Jacere.Progress/Jacere.Progress.csproj" />
+  <Project Path="test/Jacere.Progress.Test/Jacere.Progress.Test.csproj" />
+</Solution>
