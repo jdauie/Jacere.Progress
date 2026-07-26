@@ -13,6 +13,8 @@ internal class MediaScanner
             { @"M:\tv", _ => true }
         };
 
+        await Icon();
+
         await Steps();
 
         foreach (var (dir, filter) in dirsToScan)
@@ -26,6 +28,25 @@ internal class MediaScanner
         // Set(K) to a lower value would just have to turn off estimation I suppose
 
         // todo: nested counters? or does that not add anything?
+    }
+
+    static async Task Icon()
+    {
+        await using var progress = Progress.Known("progress", 100);
+        progress.Set(9);
+        progress.Hide();
+
+        var counter = progress.Counter("1")
+            .SetValueFormatter(c => new TextLine().Add("done", c.Style));
+
+        var counter2 = progress.Counter("2");
+        counter2.SetTotal(99);
+        counter2.Set(2);
+
+        var counter3 = progress.Counter("3")
+            .SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
+
+        await Task.Delay(TimeSpan.FromSeconds(1000));
     }
 
     static async Task Steps()
@@ -77,11 +98,11 @@ internal class MediaScanner
 
         await using var progress = Progress.Known($"scan:{dir}", entries.Count);
 
-        progress.SetNameFormatter(ProgressCounter.ScopedNameFormatter);
+        progress.SetNameFormatter(Progress.ScopedNameFormatter);
 
         progress.Counter("size")
             //.SetTotal(entriesSize)
-            .SetValueFormatter(ProgressCounter.BinaryByteSizeFormatter).Persist();
+            .SetValueFormatter(Progress.BinaryByteSizeFormatter).Persist();
 
         progress.Counter<FileSystemEntry2>("files")
             .SetCurrentValueFormatter(f => new TextLine().Add(Path.GetFileName(f.FullPath), CounterStyle.Priority2));
