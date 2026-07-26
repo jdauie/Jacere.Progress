@@ -1,12 +1,12 @@
-﻿namespace Jacere.Progress;
+﻿namespace Jacere.Progress.Writer;
 
 public class WriterContext : IDisposable
 {
     // todo: this "-1" is to deal with powershell console
     public int WindowWidth => Console.WindowWidth - 1;
 
-    public int _cursorTop;
-    public int _lines;
+    private int _cursorTop;
+    private int _lines;
 
     public WriterContext()
     {
@@ -103,5 +103,7 @@ public class WriterContext : IDisposable
     public void Dispose()
     {
         Console.CursorVisible = true;
+
+        GC.SuppressFinalize(this);
     }
 }

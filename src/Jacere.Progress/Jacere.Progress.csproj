@@ -17,13 +17,17 @@
   </PropertyGroup>
 
 	<ItemGroup>
-		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
-		<None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" Link="Docs\README.md" />
+		<None Include="..\..\LICENSE" Pack="true" PackagePath="\" Link="Docs\LICENSE" />
 	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ByteSize" Version="2.1.2" />
     <PackageReference Include="MinVer" PrivateAssets="All" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Docs\" />
   </ItemGroup>
 
 </Project>

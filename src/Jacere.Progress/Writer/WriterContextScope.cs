@@ -1,4 +1,4 @@
-﻿namespace Jacere.Progress;
+﻿namespace Jacere.Progress.Writer;
 
 public class WriterContextScope : IDisposable
 {
@@ -13,5 +13,7 @@ public class WriterContextScope : IDisposable
     public void Dispose()
     {
         _writer.Clear();
+
+        GC.SuppressFinalize(this);
     }
 }

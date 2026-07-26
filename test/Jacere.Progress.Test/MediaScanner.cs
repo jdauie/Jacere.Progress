@@ -77,11 +77,11 @@ internal class MediaScanner
 
         await using var progress = Progress.Known($"scan:{dir}", entries.Count);
 
-        progress.SetNameFormatter(ProgressCounter.ScopedNameFormatter);
+        progress.SetNameFormatter(Progress.ScopedNameFormatter);
 
         progress.Counter("size")
             //.SetTotal(entriesSize)
-            .SetValueFormatter(ProgressCounter.BinaryByteSizeFormatter).Persist();
+            .SetValueFormatter(Progress.BinaryByteSizeFormatter).Persist();
 
         progress.Counter<FileSystemEntry2>("files")
             .SetCurrentValueFormatter(f => new TextLine().Add(Path.GetFileName(f.FullPath), CounterStyle.Priority2));

@@ -1,32 +1,7 @@
-﻿using ByteSizeLib;
-
-namespace Jacere.Progress;
-
-public record ValueFormatterContext(long Value, CounterStyle Style, bool IsComplete);
-public record NameFormatterContext(string Name, CounterStyle Style, bool IsComplete);
+﻿namespace Jacere.Progress.Counter;
 
 public class ProgressCounter : IProgressCounter
 {
-    // todo: move these
-    public static readonly Func<ValueFormatterContext, TextLine> DefaultValueFormatter = c => new TextLine().Add($"{c.Value:n0}", c.Style);
-    public static readonly Func<ValueFormatterContext, TextLine> BinaryByteSizeFormatter = c => new TextLine().Add(ByteSize.FromBytes(c.Value).ToBinaryString(), c.Style);
-
-    public static readonly Func<NameFormatterContext, TextLine> DefaultNameFormatter = c => new TextLine().Add(c.Name, c.Style);
-    public static readonly Func<NameFormatterContext, TextLine> ScopedNameFormatter = c =>
-    {
-        var i = c.Name.IndexOf(':');
-        if (i == -1)
-        {
-            return new TextLine()
-                .Add(c.Name, c.Style);
-        }
-
-        return new TextLine()
-            .Add(c.Name[..i], CounterStyle.Priority1)
-            .Add(":", CounterStyle.Priority3)
-            .Add(c.Name[(i + 1)..], c.Style);
-    };
-    
     public string Name { get; }
 
     private long _current;
@@ -46,8 +21,8 @@ public class ProgressCounter : IProgressCounter
     {
         Name = name;
         Start = DateTime.UtcNow;
-        _nameFormatter = CreateNameFormatter(DefaultNameFormatter);
-        _valueFormatter = CreateValueFormatter(DefaultValueFormatter);
+        _nameFormatter = CreateNameFormatter(Progress.DefaultNameFormatter);
+        _valueFormatter = CreateValueFormatter(Progress.DefaultValueFormatter);
     }
 
     public ProgressCounter SetTotal(long total)

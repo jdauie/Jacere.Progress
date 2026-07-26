@@ -1,13 +1,10 @@
-﻿namespace Jacere.Progress;
+﻿using Jacere.Progress.Writer;
+
+namespace Jacere.Progress;
 
 public class TextLine
 {
-    private readonly List<ITextStyle> _parts;
-
-    public TextLine()
-    {
-        _parts = new List<ITextStyle>();
-    }
+    private readonly List<ITextStyle> _parts = [];
 
     public TextLine Add(TextLine line)
     {

@@ -1,25 +1,44 @@
-﻿using System.Collections.Concurrent;
+﻿using ByteSizeLib;
+using Jacere.Progress.Writer;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using System.Diagnostics.Metrics;
+using Jacere.Progress.Counter;
 
 namespace Jacere.Progress;
 
 public class Progress : IProgressCounter, IAsyncDisposable
 {
-    private static int _running = 0;
+    public static readonly Func<ValueFormatterContext, TextLine> DefaultValueFormatter = c => new TextLine().Add($"{c.Value:n0}", c.Style);
+    public static readonly Func<ValueFormatterContext, TextLine> BinaryByteSizeFormatter = c => new TextLine().Add(ByteSize.FromBytes(c.Value).ToBinaryString(), c.Style);
+
+    public static readonly Func<NameFormatterContext, TextLine> DefaultNameFormatter = c => new TextLine().Add(c.Name, c.Style);
+    public static readonly Func<NameFormatterContext, TextLine> ScopedNameFormatter = c =>
+    {
+        var i = c.Name.IndexOf(':');
+        if (i == -1)
+        {
+            return new TextLine()
+                .Add(c.Name, c.Style);
+        }
+
+        return new TextLine()
+            .Add(c.Name[..i], CounterStyle.Priority1)
+            .Add(":", CounterStyle.Priority3)
+            .Add(c.Name[(i + 1)..], c.Style);
+    };
+
+    private static bool _running;
 
     private readonly WriterContext _writer;
     private readonly ConsoleProgressBar _progressBar;
     private readonly Task _task;
 
-    private IProgressCounter _primary;
     private IProgressCounter _current;
     private ImmutableList<IProgressCounter> _counters;
     private readonly ConcurrentDictionary<string, Lazy<IProgressCounter>> _counterLookup = new();
     private bool _persistCounters;
 
     private TimeSpan _updateInterval = TimeSpan.FromMilliseconds(50);
-    //private TimeSpan _updateInterval = TimeSpan.FromMinutes(100);
 
     private readonly CancellationTokenSource _source = new();
 
@@ -31,10 +50,10 @@ public class Progress : IProgressCounter, IAsyncDisposable
         return progress;
     }
 
-    public static Progress<T> Known<T>(string name, long count)
+    public static Counter.Progress<T> Known<T>(string name, long count)
     {
         var counter = new ProgressCounter<T>(name);
-        var progress = new Progress<T>(counter);
+        var progress = new Counter.Progress<T>(counter);
         progress.SetTotal(count);
         return progress;
     }
@@ -45,10 +64,10 @@ public class Progress : IProgressCounter, IAsyncDisposable
         return new Progress(counter);
     }
 
-    public static Progress<T> Unknown<T>(string name)
+    public static Counter.Progress<T> Unknown<T>(string name)
     {
         var counter = new ProgressCounter<T>(name);
-        return new Progress<T>(counter);
+        return new Counter.Progress<T>(counter);
     }
 
     public string Name => _current.Name;
@@ -90,13 +109,12 @@ public class Progress : IProgressCounter, IAsyncDisposable
 
     protected Progress(IProgressCounter counter)
     {
-        if (Interlocked.Exchange(ref _running, 1) == 1)
+        if (Interlocked.Exchange(ref _running, true))
         {
             throw new InvalidOperationException($"Only one instance of {nameof(Progress)} can be created.");
         }
 
         _current = counter;
-        _primary = counter;
         _counters = ImmutableList.Create(counter);
         _counterLookup[counter.Name] = new Lazy<IProgressCounter>(() => counter);
         _writer = new WriterContext();
@@ -168,12 +186,12 @@ public class Progress : IProgressCounter, IAsyncDisposable
     {
         // todo: should these be ordered? optionally?
         var counters = _counters
-            .Where(x => !persistentOnly && !x.IsHidden || (x != this && (x.IsPersistent || _persistCounters)));
+            .Where(x => (!persistentOnly && !x.IsHidden) || (x != this && (x.IsPersistent || _persistCounters)));
         foreach (var counter in counters)
         {
             // todo: save last printed values in case the formatter loses resolution? (so we can indicate an update)
             // really this entails a rethink of the formatter pattern
-            // ...I don't remember what I meant by that
+            // (by "loses resolution" I mean if the console got resized and there is more/less space available)
 
             new TextLine()
                 .Add($"  {counter.Name}", CounterStyle.Priority2)
@@ -267,7 +285,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
 
         _writer.Dispose();
 
-        Interlocked.Exchange(ref _running, 0);
+        Interlocked.Exchange(ref _running, false);
 
         GC.SuppressFinalize(this);
     }

@@ -1,4 +1,4 @@
-﻿namespace Jacere.Progress;
+﻿namespace Jacere.Progress.Counter;
 
 public class ProgressCounter<T>(string name) : ProgressCounter(name), IProgressCounter<T>
 {
