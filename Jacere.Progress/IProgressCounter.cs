@@ -6,11 +6,15 @@ public interface IProgressCounter
     long Current { get; }
     DateTime Start { get; }
     long? Total { get; }
+    bool IsPrimary { get; }
+    bool IsHidden { get; }
     bool IsPersistent { get; }
     ProgressCounter SetTotal(long total);
     ProgressCounter SetNameFormatter(Func<NameFormatterContext, TextLine> formatter);
     ProgressCounter SetValueFormatter(Func<ValueFormatterContext, TextLine> formatter);
-    void Persist();
+    IProgressCounter Primary();
+    IProgressCounter Hide();
+    IProgressCounter Persist();
     TextLine GetFormattedName();
     TextLine GetFormattedValue(bool includeTotalIfAvailable = true);
     void Increment();

@@ -13,6 +13,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
     private readonly Task _task;
 
     private IProgressCounter _primary;
+    private IProgressCounter _current;
     private ImmutableList<IProgressCounter> _counters;
     private readonly ConcurrentDictionary<string, Lazy<IProgressCounter>> _counterLookup = new();
     private bool _persistCounters;
@@ -50,35 +51,41 @@ public class Progress : IProgressCounter, IAsyncDisposable
         return new Progress<T>(counter);
     }
 
-    public string Name => _primary.Name;
-    public long Current => _primary.Current;
-    public DateTime Start => _primary.Start;
-    public long? Total => _primary.Total;
-    public bool IsPersistent => _primary.IsPersistent;
-    public ProgressCounter SetTotal(long total) => _primary.SetTotal(total);
+    public string Name => _current.Name;
+    public long Current => _current.Current;
+    public DateTime Start => _current.Start;
+    public long? Total => _current.Total;
+    public bool IsPrimary => _current.IsPrimary;
+    public bool IsHidden => _current.IsHidden;
+    public bool IsPersistent => _current.IsPersistent;
+    public ProgressCounter SetTotal(long total) => _current.SetTotal(total);
 
     public ProgressCounter SetNameFormatter(Func<NameFormatterContext, TextLine> formatter) =>
-        _primary.SetNameFormatter(formatter);
+        _current.SetNameFormatter(formatter);
 
     public ProgressCounter SetValueFormatter(Func<ValueFormatterContext, TextLine> formatter) =>
-        _primary.SetValueFormatter(formatter);
+        _current.SetValueFormatter(formatter);
 
-    public void Persist() => _primary.Persist();
+    public IProgressCounter Primary() => _current.Primary();
 
-    public TextLine GetFormattedName() => _primary.GetFormattedName();
+    public IProgressCounter Hide() => _current.Hide();
+
+    public IProgressCounter Persist() => _current.Persist();
+
+    public TextLine GetFormattedName() => _current.GetFormattedName();
 
     public TextLine GetFormattedValue(bool includeTotalIfAvailable = true) =>
-        _primary.GetFormattedValue(includeTotalIfAvailable);
+        _current.GetFormattedValue(includeTotalIfAvailable);
 
-    public void Increment() => _primary.Increment();
+    public void Increment() => _current.Increment();
 
-    public void Add(long count) => _primary.Add(count);
+    public void Add(long count) => _current.Add(count);
 
-    public void Set(long count) => _primary.Set(count);
+    public void Set(long count) => _current.Set(count);
 
     public void Complete()
     {
-        _primary.Complete();
+        _current.Complete();
     }
 
     protected Progress(IProgressCounter counter)
@@ -88,6 +95,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
             throw new InvalidOperationException($"Only one instance of {nameof(Progress)} can be created.");
         }
 
+        _current = counter;
         _primary = counter;
         _counters = ImmutableList.Create(counter);
         _counterLookup[counter.Name] = new Lazy<IProgressCounter>(() => counter);
@@ -158,7 +166,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
     {
         // todo: should these be ordered? optionally?
         var counters = _counters
-            .Where(x => !persistentOnly || (x != this && (x.IsPersistent || _persistCounters)));
+            .Where(x => !persistentOnly && !x.IsHidden || (x != this && (x.IsPersistent || _persistCounters)));
         foreach (var counter in counters)
         {
             // todo: save last printed values in case the formatter loses resolution? (so we can indicate an update)
@@ -177,13 +185,14 @@ public class Progress : IProgressCounter, IAsyncDisposable
     {
         using var _ = _writer.Scope();
 
-        // use the first counter for the total time
         var firstCounter = _counters[0];
 
+        var primaryCounter = _counters.FirstOrDefault(x => x.IsPrimary) ?? firstCounter;
+
         new TextLine()
-            .Add(GetFormattedName())
+            .Add(firstCounter.GetFormattedName())
             .Add(": ", CounterStyle.Priority3)
-            .Add(GetFormattedValue(false))
+            .Add(primaryCounter.GetFormattedValue(false))
             .Add(" in ", CounterStyle.Priority3)
             .Add($@"{DateTime.UtcNow - firstCounter.Start:dd\.hh\:mm\:ss}", CounterStyle.Priority2)
             .Write(_writer);
@@ -224,11 +233,11 @@ public class Progress : IProgressCounter, IAsyncDisposable
     public IProgressCounter Step(string name, long? total = null)
     {
         var counter = Counter(name);
-        _primary.Complete();
-        _primary = counter;
+        _current.Complete();
+        _current = counter;
         if (total != null)
         {
-            _primary.SetTotal(total.Value);
+            _current.SetTotal(total.Value);
         }
         return counter;
     }
@@ -236,11 +245,11 @@ public class Progress : IProgressCounter, IAsyncDisposable
     public IProgressCounter<T> Step<T>(string name, long? total = null)
     {
         var counter = Counter<T>(name);
-        _primary.Complete();
-        _primary = counter;
+        _current.Complete();
+        _current = counter;
         if (total != null)
         {
-            _primary.SetTotal(total.Value);
+            _current.SetTotal(total.Value);
         }
         return counter;
     }

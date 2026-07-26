@@ -26,27 +26,37 @@ internal class MediaScanner
         // Set(K) to a lower value would just have to turn off estimation I suppose
 
         // todo: nested counters? or does that not add anything?
-
-        // todo: when I want to have one top-level progress for multiple steps, is it better to reset the progress, or...?
     }
 
     static async Task Optimize()
     {
-        await using var progress = Progress.Unknown("optimizing");
+        await using var progress = Progress.Unknown("optimize");
+
+        // todo: this still needs work.  when stepping, which count should show at the end?
+        // stepping probably needs a distinct flow
+
+        progress.Hide();
+
+        progress.Step("sort inputs");
         
         progress.SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
 
         await Task.Delay(TimeSpan.FromSeconds(5));
 
-        var count = 200;
-        progress.Step("step 2", count);
+        var count = 100;
+        progress.Step("step 2", count).Primary();
 
         for (var i = 0; i < count; i++)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
 
             progress.Increment();
         }
+
+        progress.Step("sort outputs");
+
+        progress.SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
+        await Task.Delay(TimeSpan.FromSeconds(5));
     }
 
     static async Task Scan(string dir, Func<string, bool> filter)

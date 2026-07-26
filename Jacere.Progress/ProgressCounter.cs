@@ -38,6 +38,8 @@ public class ProgressCounter : IProgressCounter
 
     public DateTime Start { get; }
     public long? Total { get; private set; }
+    public bool IsPrimary { get; private set; }
+    public bool IsHidden { get; private set; }
     public bool IsPersistent { get; private set; }
 
     public ProgressCounter(string name)
@@ -66,9 +68,22 @@ public class ProgressCounter : IProgressCounter
         return this;
     }
 
-    public void Persist()
+    public IProgressCounter Primary()
+    {
+        IsPrimary = true;
+        return this;
+    }
+
+    public IProgressCounter Hide()
+    {
+        IsHidden = true;
+        return this;
+    }
+
+    public IProgressCounter Persist()
     {
         IsPersistent = true;
+        return this;
     }
 
     public TextLine GetFormattedName()
