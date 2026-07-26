@@ -36,9 +36,9 @@ internal class MediaScanner
 
         progress.Hide();
 
-        progress.Step("sort input");
-        
-        progress.SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
+        progress
+            .Step("sort input")
+            .SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
 
         await Task.Delay(TimeSpan.FromSeconds(1 * scale));
 
@@ -62,9 +62,9 @@ internal class MediaScanner
             progress.Increment();
         }
 
-        progress.Step("sort result");
-
-        progress.SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
+        progress
+            .Step("sort result")
+            .SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
 
         await Task.Delay(TimeSpan.FromSeconds(1 * scale));
     }
