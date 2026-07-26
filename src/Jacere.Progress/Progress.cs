@@ -138,6 +138,8 @@ public class Progress : IProgressCounter, IAsyncDisposable
     {
         using var _ = _writer.Scope();
 
+        var firstCounter = _counters[0];
+
         var progress = 0.0;
         var count = Total;
         if (count.HasValue)
@@ -153,7 +155,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
 
         new TextLine()
             .Add($" {progress:P} ", CounterStyle.Progress)
-            .Add(GetFormattedName())
+            .Add(firstCounter.GetFormattedName())
             .Pad()
             .Add($@"(started {Start:yyyy-MM-dd HH\:mm\:ss}Z) ", CounterStyle.Progress2)
             .Add($@"{DateTime.UtcNow - Start:dd\.hh\:mm\:ss} ", CounterStyle.Progress)

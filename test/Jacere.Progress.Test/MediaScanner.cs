@@ -13,7 +13,7 @@ internal class MediaScanner
             { @"M:\tv", _ => true }
         };
 
-        await Optimize();
+        await Steps();
 
         foreach (var (dir, filter) in dirsToScan)
         {
@@ -28,35 +28,45 @@ internal class MediaScanner
         // todo: nested counters? or does that not add anything?
     }
 
-    static async Task Optimize()
+    static async Task Steps()
     {
-        await using var progress = Progress.Unknown("optimize");
+        const int scale = 2;
 
-        // todo: this still needs work.  when stepping, which count should show at the end?
-        // stepping probably needs a distinct flow
+        await using var progress = Progress.Unknown("db:table.event");
 
         progress.Hide();
 
-        progress.Step("sort inputs");
+        progress.Step("sort input");
         
         progress.SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
 
-        await Task.Delay(TimeSpan.FromSeconds(5));
+        await Task.Delay(TimeSpan.FromSeconds(1 * scale));
 
         var count = 100;
-        progress.Step("step 2", count).Primary();
+        progress.Step("load temp", count).Primary();
 
         for (var i = 0; i < count; i++)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(50));
+            await Task.Delay(TimeSpan.FromMilliseconds(10 * scale));
 
             progress.Increment();
         }
 
-        progress.Step("sort outputs");
+        var count2 = 150;
+        progress.Step("copy", count2).Primary();
+
+        for (var i = 0; i < count2; i++)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(10 * scale));
+
+            progress.Increment();
+        }
+
+        progress.Step("sort result");
 
         progress.SetValueFormatter(c => new TextLine().Add(c.IsComplete ? "done" : "...", c.Style));
-        await Task.Delay(TimeSpan.FromSeconds(5));
+
+        await Task.Delay(TimeSpan.FromSeconds(1 * scale));
     }
 
     static async Task Scan(string dir, Func<string, bool> filter)
