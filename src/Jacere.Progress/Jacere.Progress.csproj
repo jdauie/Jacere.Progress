@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <PackageReference Include="ByteSize" Version="2.1.2" />
+    <PackageReference Include="MinVer" PrivateAssets="All" Version="2.3.0" />
   </ItemGroup>
 
 </Project>
