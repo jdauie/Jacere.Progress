@@ -37,6 +37,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
     private ImmutableList<IProgressCounter> _counters;
     private readonly ConcurrentDictionary<string, Lazy<IProgressCounter>> _counterLookup = new();
     private bool _persistCounters;
+    private bool _disposed;
 
     private TimeSpan _updateInterval = TimeSpan.FromMilliseconds(50);
 
@@ -276,6 +277,11 @@ public class Progress : IProgressCounter, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         await _source.CancelAsync();
         await _task;
 
@@ -288,5 +294,7 @@ public class Progress : IProgressCounter, IAsyncDisposable
         Interlocked.Exchange(ref _running, false);
 
         GC.SuppressFinalize(this);
+
+        _disposed = true;
     }
 }
